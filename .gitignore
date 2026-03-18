@@ -20,9 +20,20 @@ build/
 data/raw/
 data/processed/
 data/regimes/
+data/checkpoints/
 outputs/figures/
 outputs/models/
 outputs/reports/
+
+# Local pipeline / notebook repos (submodules / copies)
+claude-scratch-work-repo-copy/
+gsd-scratch-work-repo-copy/
+trading-crab-repo-copy/
+
+# Common non-library directories (keep out of git + PyPI builds)
+pipelines/
+scripts/
+notebooks/
 
 # Secrets / API keys (always use .env instead)
 *.key
