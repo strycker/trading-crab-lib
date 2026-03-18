@@ -13,6 +13,10 @@ prune config
 prune data
 prune outputs
 
+global-exclude .env
+global-exclude email.local.yaml
+
 global-exclude *.pyc
 global-exclude __pycache__
 global-exclude .DS_Store
+
