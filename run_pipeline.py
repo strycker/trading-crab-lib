@@ -19,10 +19,12 @@ import sys
 from datetime import date
 from pathlib import Path
 
-# Allow running from repo root without `pip install -e .`
-sys.path.insert(0, str(Path(__file__).parent / "src"))
-
-import trading_crab_lib as crab
+# Prefer the installed package; fall back to ./src for local runs.
+try:
+    import trading_crab_lib as crab
+except ImportError:  # pragma: no cover
+    sys.path.insert(0, str(Path(__file__).parent / "src"))
+    import trading_crab_lib as crab
 from trading_crab_lib.checkpoints import CheckpointManager
 from trading_crab_lib.config import load, setup_logging
 from trading_crab_lib.email import build_weekly_email_body, load_email_config, send_weekly_email
