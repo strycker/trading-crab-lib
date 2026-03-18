@@ -33,16 +33,30 @@ def add_cross_ratios(df: pd.DataFrame) -> pd.DataFrame:
     each ratio has a specific financial interpretation.
     """
     df = df.copy()
-    df["div_yield2"]      = df["dividend"]  / df["sp500"]
-    df["price_div"]       = df["sp500"]     / df["dividend"]
-    df["price_gdp"]       = df["sp500"]     / df["gdp"]
-    df["price_gdp2"]      = df["sp500"]     / df["fred_gdp"]
-    df["price_gnp2"]      = df["sp500"]     / df["fred_gnp"]
-    df["div_minus_baa"]   = df["div_yield"] - df["fred_baa"] / 100.0
-    df["credit_spread"]   = (df["fred_baa"] - df["fred_aaa"]) / 100.0
-    df["real_price2"]     = df["sp500"]     / df["cpi"]
-    df["real_price3"]     = df["sp500"]     / df["fred_cpi"]
-    df["real_price_gdp2"] = df["sp500_adj"] / df["gdp"]
+    cols = set(df.columns)
+
+    # Each ratio is only created when its required inputs are present.
+    # This keeps the library usable with minimal configs / partial raw datasets.
+    if {"dividend", "sp500"} <= cols:
+        df["div_yield2"] = df["dividend"] / df["sp500"]
+        df["price_div"] = df["sp500"] / df["dividend"]
+    if {"sp500", "gdp"} <= cols:
+        df["price_gdp"] = df["sp500"] / df["gdp"]
+    if {"sp500", "fred_gdp"} <= cols:
+        df["price_gdp2"] = df["sp500"] / df["fred_gdp"]
+    if {"sp500", "fred_gnp"} <= cols:
+        df["price_gnp2"] = df["sp500"] / df["fred_gnp"]
+    if {"div_yield", "fred_baa"} <= cols:
+        df["div_minus_baa"] = df["div_yield"] - df["fred_baa"] / 100.0
+    if {"fred_baa", "fred_aaa"} <= cols:
+        df["credit_spread"] = (df["fred_baa"] - df["fred_aaa"]) / 100.0
+    if {"sp500", "cpi"} <= cols:
+        df["real_price2"] = df["sp500"] / df["cpi"]
+    if {"sp500", "fred_cpi"} <= cols:
+        df["real_price3"] = df["sp500"] / df["fred_cpi"]
+    if {"sp500_adj", "gdp"} <= cols:
+        df["real_price_gdp2"] = df["sp500_adj"] / df["gdp"]
+
     return df
 
 
@@ -262,19 +276,22 @@ def engineer_all(df: pd.DataFrame, cfg: dict, causal: bool = False) -> pd.DataFr
 
     Returns the ML-ready DataFrame (no NaNs, clustering_features + market_code).
     """
-    feat_cfg = cfg["features"]
-    window = feat_cfg.get("derivative_window", 5)
+    feat_cfg = cfg.get("features", {}) or {}
+    window = int(feat_cfg.get("derivative_window", 5))
     mode = "causal/backward" if causal else "centered"
+    log_columns = list(feat_cfg.get("log_columns", []) or [])
+    initial_features = list(feat_cfg.get("initial_features", []) or [])
+    clustering_features = list(feat_cfg.get("clustering_features", []) or [])
 
     log.info("Step 1/6 — cross-asset ratios")
     df = add_cross_ratios(df)
     df = add_yield_curve_features(df)
 
-    log.info("Step 2/6 — log transforms (%d columns)", len(feat_cfg["log_columns"]))
-    df = apply_log_transforms(df, feat_cfg["log_columns"])
+    log.info("Step 2/6 — log transforms (%d columns)", len(log_columns))
+    df = apply_log_transforms(df, log_columns)
 
-    log.info("Step 3/6 — initial feature selection (%d features)", len(feat_cfg["initial_features"]))
-    df = select_features(df, feat_cfg["initial_features"])
+    log.info("Step 3/6 — initial feature selection (%d features)", len(initial_features))
+    df = select_features(df, initial_features)
 
     log.info("Step 4/6 — Bernstein gap filling (always centered for boundary conditions)")
     df = apply_gap_fill(df, window=window)
@@ -282,8 +299,8 @@ def engineer_all(df: pd.DataFrame, cfg: dict, causal: bool = False) -> pd.DataFr
     log.info("Step 5/6 — smoothed derivatives (window=%d, mode=%s)", window, mode)
     df = apply_derivatives(df, window=window, causal=causal)
 
-    log.info("Step 6/6 — clustering feature selection (%d features)", len(feat_cfg["clustering_features"]))
-    df = select_features(df, feat_cfg["clustering_features"])
+    log.info("Step 6/6 — clustering feature selection (%d features)", len(clustering_features))
+    df = select_features(df, clustering_features)
 
     nan_count = df.drop(columns=["market_code"], errors="ignore").isna().sum().sum()
     log.info(
