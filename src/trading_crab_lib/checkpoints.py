@@ -60,13 +60,19 @@ from trading_crab_lib import DATA_DIR, CONFIG_DIR
 
 log = logging.getLogger(__name__)
 
-CHECKPOINT_DIR = DATA_DIR / "checkpoints"
+
+def _default_checkpoint_dir() -> Path | None:
+    if DATA_DIR is None:
+        return None
+    return DATA_DIR / "checkpoints"
 
 
-def _config_hash() -> str:
-    """MD5 of settings.yaml — used to detect config changes that invalidate checkpoints."""
-    path = CONFIG_DIR / "settings.yaml"
-    if not path.exists():
+def _config_hash(settings_path: Path | None = None) -> str:
+    """MD5 of settings file — used to detect config changes that invalidate checkpoints."""
+    path = settings_path
+    if path is None and CONFIG_DIR is not None:
+        path = CONFIG_DIR / "settings.yaml"
+    if path is None or not path.exists():
         return "no-config"
     return hashlib.md5(path.read_bytes()).hexdigest()[:8]
 
@@ -75,13 +81,19 @@ class CheckpointManager:
     """
     Manages parquet checkpoints for DataFrames and pickle checkpoints for models.
 
-    All files live under data/checkpoints/.  Each checkpoint pair:
-      {name}.parquet  — the DataFrame
-      {name}.meta.json — metadata (timestamp, config hash, shape)
+    All files live under the given checkpoint_dir (or DATA_DIR/checkpoints when
+    trading_crab_lib.DATA_DIR is set).  Caller must pass checkpoint_dir or set
+    TRADING_CRAB_DATA_DIR / trading_crab_lib.DATA_DIR.
     """
 
-    def __init__(self, checkpoint_dir: Path | None = None) -> None:
-        self.dir = checkpoint_dir or CHECKPOINT_DIR
+    def __init__(self, checkpoint_dir: Path | None = None, settings_path: Path | None = None) -> None:
+        self.dir = checkpoint_dir or _default_checkpoint_dir()
+        if self.dir is None:
+            raise ValueError(
+                "CheckpointManager needs checkpoint_dir=... or trading_crab_lib.DATA_DIR set "
+                "(e.g. TRADING_CRAB_DATA_DIR). No default path in library."
+            )
+        self._settings_path = settings_path
         self.dir.mkdir(parents=True, exist_ok=True)
 
     # ── DataFrame checkpoints ─────────────────────────────────────────────
@@ -96,7 +108,7 @@ class CheckpointManager:
         meta = {
             "name": name,
             "created": datetime.now().isoformat(),
-            "config_hash": _config_hash(),
+            "config_hash": _config_hash(self._settings_path),
             "rows": len(df),
             "columns": len(df.columns),
             "col_names": list(df.columns),
@@ -155,7 +167,7 @@ class CheckpointManager:
             )
             return False
 
-        if require_config_match and meta.get("config_hash") != _config_hash():
+        if require_config_match and meta.get("config_hash") != _config_hash(self._settings_path):
             log.info("Checkpoint config mismatch: %s — settings.yaml changed", name)
             return False
 

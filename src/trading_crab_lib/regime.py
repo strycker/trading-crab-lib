@@ -161,13 +161,15 @@ def build_transition_matrix(cluster_labels: pd.Series) -> pd.DataFrame:
     return matrix
 
 
-def load_name_overrides(config_dir: Path) -> dict[int, str]:
+def load_name_overrides(config_dir: Path | None) -> dict[int, str]:
     """
     Load manually pinned regime names from config/regime_labels.yaml.
 
     These take precedence over auto-suggested names from suggest_names().
-    Returns empty dict if the file doesn't exist or has no valid entries.
+    Returns empty dict if config_dir is None, file doesn't exist, or no valid entries.
     """
+    if config_dir is None:
+        return {}
     path = config_dir / "regime_labels.yaml"
     if not path.exists():
         return {}

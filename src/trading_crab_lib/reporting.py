@@ -419,11 +419,11 @@ def write_weekly_report_md(
         lines.append("Transition probabilities not available.")
     lines.append("")
 
-    # Optional tactics section
+    # Optional tactics section (only when OUTPUT_DIR is set by caller)
     from trading_crab_lib import OUTPUT_DIR  # local import to avoid circulars
 
-    tactics_path = OUTPUT_DIR / "reports" / "tactics_signals.parquet"
-    if tactics_path.exists():
+    tactics_path = (OUTPUT_DIR / "reports" / "tactics_signals.parquet") if OUTPUT_DIR else None
+    if tactics_path is not None and tactics_path.exists():
         try:
             tac = pd.read_parquet(tactics_path)
             buy_hold = tac[tac["tactics_label"] == "buy_hold"]["asset"].tolist()

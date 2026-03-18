@@ -1,8 +1,15 @@
 """Shared fixtures for all tests."""
 
+import os
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
+
+# Set path roots for the library so tests that use CONFIG_DIR/DATA_DIR work (e.g. constraints).
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+os.environ.setdefault("TRADING_CRAB_ROOT", str(_REPO_ROOT))
 
 
 @pytest.fixture

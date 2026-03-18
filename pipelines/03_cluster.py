@@ -39,7 +39,7 @@ import numpy as np
 
 def main() -> None:
     setup_logging()
-    cfg = load()
+    cfg = load(settings_path=(crab.CONFIG_DIR / "settings.yaml") if crab.CONFIG_DIR else None)
     clust_cfg = cfg.get("clustering") or {}
     # Sensible defaults so the runner works with minimal configs.
     n_pca = int(clust_cfg.get("n_pca_components", 5))

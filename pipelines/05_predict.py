@@ -44,7 +44,7 @@ import pandas as pd
 
 def main() -> None:
     setup_logging()
-    cfg = load()
+    cfg = load(settings_path=(crab.CONFIG_DIR / "settings.yaml") if crab.CONFIG_DIR else None)
 
     # Use causal features — no look-ahead bias for supervised learning
     sup_path = crab.DATA_DIR / "processed" / "features_supervised.parquet"

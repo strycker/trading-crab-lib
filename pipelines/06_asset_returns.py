@@ -70,7 +70,7 @@ def main() -> None:
     refresh_assets: bool = args.refresh_assets
 
     setup_logging()
-    cfg = load()
+    cfg = load(settings_path=(crab.CONFIG_DIR / "settings.yaml") if crab.CONFIG_DIR else None)
     cm = CheckpointManager()
 
     labels = pd.read_parquet(crab.DATA_DIR / "regimes" / "cluster_labels.parquet")["balanced_cluster"]
