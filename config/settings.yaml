@@ -44,3 +44,13 @@ fred:
       name: fred_t10y3m
       shift: false
 
+# Minimal feature config for trading_crab_lib.transforms.engineer_all().
+# Expand this in your pipelines repo for full production runs.
+features:
+  derivative_window: 5
+  # Log transforms are optional; missing columns are skipped safely.
+  log_columns: []
+  # When empty, selection is a no-op (features will be whatever survives step 4-5).
+  initial_features: []
+  clustering_features: []
+
