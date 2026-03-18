@@ -6,6 +6,8 @@ prune pipelines
 prune scripts
 prune notebooks
 
+exclude run_pipeline.py
+
 prune data
 prune outputs
 
