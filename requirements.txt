@@ -1,0 +1,38 @@
+# Runtime dependencies — minimum version bounds for direct dependencies.
+#
+# These bounds match pyproject.toml and are compatible with Python 3.10+.
+# pip will resolve the correct transitive versions for your Python version.
+#
+# To install:
+#   pip install -r requirements.txt
+#
+# If you need a fully-pinned lockfile for exact reproducibility (Python 3.11+):
+#   pip install pip-tools
+#   pip-compile pyproject.toml --output-file requirements-lock.txt
+
+# Data
+pandas>=2.0
+numpy>=1.25
+pyarrow>=14.0
+
+# Data ingestion
+fredapi>=0.5
+requests>=2.31
+beautifulsoup4>=4.12
+lxml>=4.9
+yfinance>=0.2
+
+# Feature engineering / ML
+scikit-learn>=1.4
+scipy>=1.11
+
+# Config / env
+pyyaml>=6.0
+python-dotenv>=1.0
+
+# Visualization
+matplotlib>=3.8
+seaborn>=0.13
+
+# SSL — certifi ensures yfinance / curl_cffi can verify certificates on all platforms
+certifi>=2024.0
