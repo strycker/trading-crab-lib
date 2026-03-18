@@ -1,4 +1,4 @@
-"""Tests for email.py and scripts/run_weekly_report.py."""
+"""Tests for email helpers in trading_crab_lib.email."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from market_regime.email import (
+from trading_crab_lib.email import (
     build_weekly_email_body,
     load_email_config,
     send_weekly_email,
@@ -101,7 +101,7 @@ def test_send_email_no_recipients():
     assert result is False
 
 
-@patch("market_regime.email.smtplib.SMTP")
+@patch("trading_crab_lib.email.smtplib.SMTP")
 def test_send_email_tls_success(mock_smtp_cls):
     mock_smtp = MagicMock()
     mock_smtp_cls.return_value = mock_smtp
@@ -123,7 +123,7 @@ def test_send_email_tls_success(mock_smtp_cls):
     mock_smtp.quit.assert_called_once()
 
 
-@patch("market_regime.email.smtplib.SMTP_SSL")
+@patch("trading_crab_lib.email.smtplib.SMTP_SSL")
 def test_send_email_ssl_success(mock_smtp_ssl_cls):
     mock_smtp = MagicMock()
     mock_smtp_ssl_cls.return_value = mock_smtp
@@ -143,38 +143,7 @@ def test_send_email_ssl_success(mock_smtp_ssl_cls):
     mock_smtp.sendmail.assert_called_once()
 
 
-# ── run_weekly_report.py tests ───────────────────────────────────────────────
-
-
-def test_archive_weekly_report_creates_dated_copy(tmp_path):
-    import sys
-    from datetime import date
-    sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-
-    from run_weekly_report import archive_weekly_report
-
-    content = "# Weekly Report\nAll good."
-    (tmp_path / "weekly_report.md").write_text(content, encoding="utf-8")
-    archive_weekly_report(tmp_path)
-
-    today = date.today().isoformat()
-    stamped = tmp_path / f"weekly_{today}.md"
-    email_body = tmp_path / "email_body.txt"
-    assert stamped.exists()
-    assert email_body.exists()
-    assert stamped.read_text(encoding="utf-8") == content
-    assert email_body.read_text(encoding="utf-8") == content
-
-
-def test_archive_weekly_report_noop_when_no_report(tmp_path):
-    import sys
-    from datetime import date
-    sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
-
-    from run_weekly_report import archive_weekly_report
-
-    archive_weekly_report(tmp_path)
-
-    today = date.today().isoformat()
-    assert not (tmp_path / f"weekly_{today}.md").exists()
-    assert not (tmp_path / "email_body.txt").exists()
+# Tests that depended on the legacy `scripts/run_weekly_report.py` entrypoint
+# have been removed in this library-only repo. The weekly report orchestration
+# now lives in the application repo; here we only exercise the pure email
+# helpers in `trading_crab_lib.email`.

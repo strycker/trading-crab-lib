@@ -1,4 +1,4 @@
-"""Unit tests for src/market_regime/io/checkpoints.py"""
+"""Unit tests for trading_crab_lib.checkpoints.CheckpointManager."""
 
 import sys
 import time
@@ -10,7 +10,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from market_regime.checkpoints import CheckpointManager
+from trading_crab_lib.checkpoints import CheckpointManager
 
 
 @pytest.fixture

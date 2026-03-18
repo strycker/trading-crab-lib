@@ -19,7 +19,7 @@ Install optional fallback libraries
     pip install pandas-datareader     # enables Phase 3 (stooq)
     pip install openbb                # enables Phase 4 (OpenBB)
     # or together:
-    pip install "market-regime[data-extras]"
+    pip install "trading-crab-lib[data-extras]"
 
 Notes on sources that are NOT suitable for historical ETF prices
 ----------------------------------------------------------------
@@ -46,7 +46,7 @@ makes one HTTP request instead of one per ticker.  This dramatically reduces
 the chance of hitting Yahoo Finance's "Too Many Requests" rate limit.
 
 Usage:
-    from market_regime.ingestion.assets import fetch_all
+    from trading_crab_lib.ingestion.assets import fetch_all
     prices = fetch_all(cfg)   # returns DataFrame of quarterly adj-close prices
 """
 
