@@ -34,6 +34,7 @@ from trading_crab_lib.clustering import (
 )
 
 import pandas as pd
+import numpy as np
 
 
 def main() -> None:
@@ -50,6 +51,21 @@ def main() -> None:
     features = pd.read_parquet(crab.DATA_DIR / "processed" / "features.parquet")
     X = features.drop(columns=["market_code"], errors="ignore")
     print(f"\nLoaded features: {X.shape}")
+
+    # PCA cannot handle NaNs. Centered derivative features commonly produce NaNs
+    # at the beginning/end of the series (and sometimes for sparse inputs).
+    # Keep the pipeline resilient by dropping affected rows before PCA.
+    X = X.replace([np.inf, -np.inf], np.nan)
+    n_before = len(X)
+    X = X.dropna(axis=0, how="any")
+    n_dropped = n_before - len(X)
+    if n_dropped:
+        print(f"Dropped {n_dropped} rows with NaN/inf before PCA; remaining: {X.shape}")
+    if X.empty:
+        raise ValueError(
+            "All feature rows contain NaN/inf after preprocessing; cannot run PCA. "
+            "Inspect data/processed/features.parquet and your feature engineering config."
+        )
 
     # ── 1. PCA ─────────────────────────────────────────────────────────────
     # Library logs: "Running PCA... done." + variance ratios
@@ -82,7 +98,7 @@ def main() -> None:
 
     # Restore market_code for downstream steps
     if "market_code" in features.columns:
-        clustered["market_code"] = features["market_code"]
+        clustered["market_code"] = features.loc[clustered.index, "market_code"]
 
     # ── Persist ─────────────────────────────────────────────────────────────
     out_dir = crab.DATA_DIR / "regimes"

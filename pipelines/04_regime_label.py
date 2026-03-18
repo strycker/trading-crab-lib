@@ -1,0 +1,77 @@
+"""
+Pipeline step 4 — Regime Profiling & Labeling
+
+Reads cluster_labels + raw features, computes per-cluster statistics,
+suggests human-readable names, and writes:
+  data/regimes/profiles.parquet
+  data/regimes/transition_matrix.parquet
+  data/regimes/regime_names.yaml   — auto-suggested (edit manually)
+
+Run:
+    python pipelines/04_regime_label.py
+"""
+
+from pathlib import Path
+
+# Prefer the installed package; fall back to ./src for local runs.
+try:
+    import trading_crab_lib as crab  # noqa: F401
+except ImportError:  # pragma: no cover
+    import sys
+
+    sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+    import trading_crab_lib as crab  # type: ignore[no-redef]
+from trading_crab_lib.config import load, setup_logging
+from trading_crab_lib.regime import (
+    build_profiles,
+    suggest_names,
+    build_transition_matrix,
+    load_name_overrides,
+)
+
+import pandas as pd
+import yaml
+
+
+def main() -> None:
+    setup_logging()
+    cfg = load()
+
+    features = pd.read_parquet(crab.DATA_DIR / "processed" / "features.parquet")
+    labels = pd.read_parquet(crab.DATA_DIR / "regimes" / "cluster_labels.parquet")["balanced_cluster"]
+
+    # Align index (features may have more rows if gap-filled beyond label dates)
+    common = features.index.intersection(labels.index)
+    features = features.loc[common]
+    labels = labels.loc[common]
+
+    # Profile
+    profile = build_profiles(features, labels)
+    profile.to_parquet(crab.DATA_DIR / "regimes" / "profiles.parquet")
+
+    # Auto-suggest names from raw features + labels, then apply manual overrides
+    auto_names = suggest_names(features, labels)
+    overrides = load_name_overrides(crab.CONFIG_DIR)
+    regime_names = {**auto_names, **overrides}
+
+    # Save auto-suggestions so user can review / edit config/regime_labels.yaml
+    suggestions_path = crab.DATA_DIR / "regimes" / "regime_names_suggested.yaml"
+    with open(suggestions_path, "w") as f:
+        yaml.dump(regime_names, f, default_flow_style=False)
+    print(f"Regime name suggestions → {suggestions_path}")
+
+    # Transition matrix
+    tm = build_transition_matrix(labels)
+    tm.to_parquet(crab.DATA_DIR / "regimes" / "transition_matrix.parquet")
+
+    print("\nRegime summary:")
+    for rid, name in sorted(regime_names.items()):
+        n = (labels == rid).sum()
+        print(f"  Cluster {rid}: {name!r}  ({n} quarters)")
+
+    print("\nTransition matrix (row=from, col=to):")
+    print(tm.round(2).to_string())
+
+
+if __name__ == "__main__":
+    main()

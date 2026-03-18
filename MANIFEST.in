@@ -8,6 +8,8 @@ prune notebooks
 
 exclude run_pipeline.py
 
+prune config
+
 prune data
 prune outputs
 

@@ -166,14 +166,23 @@ def main(argv: list[str] | None = None) -> int:
         print(f"── Step {step}: {label} ──")
         mod = importlib.import_module(module_name)
 
+        # Step 1: only refresh macro data when explicitly requested, or on first run.
+        if step == 1:
+            macro_path = crab.DATA_DIR / "raw" / "macro_raw.parquet"
+            if macro_path.exists() and not args.refresh:
+                print(f"macro_raw checkpoint found at {macro_path} — skip refresh (pass --refresh to re-fetch).")
+            else:
+                mod.main()
+
         # Step 6 supports a CLI flag; emulate its argv contract.
-        if step == 6 and getattr(mod, "main", None):
+        elif step == 6 and getattr(mod, "main", None):
             old_argv = sys.argv[:]
             try:
                 sys.argv = [sys.argv[0]] + (["--refresh-assets"] if args.refresh_assets else [])
                 mod.main()
             finally:
                 sys.argv = old_argv
+
         else:
             mod.main()
 
@@ -209,7 +218,26 @@ def main(argv: list[str] | None = None) -> int:
         archive_weekly_report()
 
     if args.send_email:
-        email_cfg = load_email_config()
+        # Prefer the standard config/email.yaml, but support local overrides
+        # via config/email.local.yaml (gitignored).
+        email_cfg: dict = {}
+        email_yaml = crab.CONFIG_DIR / "email.yaml"
+        email_local = crab.CONFIG_DIR / "email.local.yaml"
+
+        if email_yaml.exists():
+            email_cfg = load_email_config(email_yaml)
+        if (not email_cfg) and email_local.exists():
+            email_cfg = load_email_config(email_local)
+
+        # Backward-compatible key mapping (older configs used from_address/to_address).
+        if email_cfg:
+            if "sender" not in email_cfg and "from_address" in email_cfg:
+                email_cfg["sender"] = email_cfg.get("from_address")
+            if "recipients" not in email_cfg:
+                if "to_address" in email_cfg:
+                    email_cfg["recipients"] = [email_cfg.get("to_address")]
+                elif "to_addresses" in email_cfg:
+                    email_cfg["recipients"] = email_cfg.get("to_addresses")
         if not email_cfg:
             print("Email config not found or invalid; skipping send.")
         else:
