@@ -1,12 +1,8 @@
 """
 Weekly email delivery for market regime reports.
 
-Loads SMTP configuration from config/email.yaml, composes an email body
-from the most recent weekly report, and sends via SMTP (TLS or SSL).
-
-  load_email_config()        — parse config/email.yaml
-  build_weekly_email_body()  — compose subject + body from report files
-  send_weekly_email()        — send via SMTP with TLS/SSL support
+SMTP config is loaded from a path provided by the caller (no default path).
+Accepts both key schemas: sender/recipients and from_address/to_address.
 """
 
 from __future__ import annotations
@@ -27,23 +23,20 @@ def load_email_config(config_path: Path | None = None) -> dict:
     """
     Load email configuration from a YAML file.
 
-    Expected keys:
-        smtp_host:     SMTP server hostname
-        smtp_port:     port (587 for TLS, 465 for SSL)
-        username:      SMTP username
-        password:      SMTP password (or app-specific password)
-        sender:        sender email address
-        recipients:    list of recipient email addresses
-        use_ssl:       true for SSL (port 465), false for STARTTLS (port 587)
+    Args:
+        config_path: Path to email YAML. If None, returns {} (no file read).
 
-    Returns empty dict if file is missing or malformed.
+    Expected keys (either schema):
+        sender / from_address   — sender email
+        recipients / to_address — recipient(s); to_address can be str or list
+        smtp_host, smtp_port, username, password
+        use_ssl (optional)
+
+    Returns empty dict if path is None, missing, or malformed.
     """
-    if config_path is None:
-        from trading_crab_lib import CONFIG_DIR
-        config_path = CONFIG_DIR / "email.yaml"
-
-    if not config_path.exists():
-        log.warning("Email config not found at %s", config_path)
+    if config_path is None or not config_path.exists():
+        if config_path is not None:
+            log.warning("Email config not found at %s", config_path)
         return {}
 
     try:
@@ -52,10 +45,25 @@ def load_email_config(config_path: Path | None = None) -> dict:
         if not isinstance(cfg, dict):
             log.warning("Email config is not a dict: %s", config_path)
             return {}
-        return cfg
+        return _normalize_email_config(cfg)
     except Exception as exc:
         log.warning("Failed to load email config: %s", exc)
         return {}
+
+
+def _normalize_email_config(cfg: dict) -> dict:
+    """Ensure config has sender and recipients (from from_address/to_address if present)."""
+    out = dict(cfg)
+    if out.get("sender") is None and out.get("from_address") is not None:
+        out["sender"] = out["from_address"]
+    if out.get("recipients") is None:
+        if out.get("to_address") is not None:
+            to = out["to_address"]
+            out["recipients"] = [to] if isinstance(to, str) else list(to)
+        elif out.get("to_addresses") is not None:
+            to = out["to_addresses"]
+            out["recipients"] = [to] if isinstance(to, str) else list(to)
+    return out
 
 
 def build_weekly_email_body(
@@ -76,19 +84,16 @@ def build_weekly_email_body(
     from datetime import date
     subject = f"{subject_prefix} — {date.today().isoformat()}"
 
-    # Try pre-formatted email body
     email_body_file = report_dir / "email_body.txt"
     if email_body_file.exists():
         body = email_body_file.read_text(encoding="utf-8")
         return subject, body
 
-    # Try markdown report
     report_file = report_dir / "weekly_report.md"
     if report_file.exists():
         body = report_file.read_text(encoding="utf-8")
         return subject, body
 
-    # Fallback: dashboard CSV summary
     dashboard_file = report_dir / "dashboard.csv"
     if dashboard_file.exists():
         import pandas as pd
@@ -107,21 +112,25 @@ def send_weekly_email(
     """
     Send an email via SMTP.
 
+    Config may use either schema: sender/recipients or from_address/to_address
+    (both are normalized internally).
+
     Args:
-        config:  dict from load_email_config()
+        config:  dict from load_email_config() or with sender, recipients, etc.
         subject: email subject line
         body:    email body (plain text)
 
     Returns:
         True if sent successfully, False otherwise.
     """
+    cfg = _normalize_email_config(config)
     required = ["smtp_host", "smtp_port", "username", "password", "sender", "recipients"]
-    missing = [k for k in required if k not in config or not config[k]]
+    missing = [k for k in required if k not in cfg or not cfg[k]]
     if missing:
         log.error("Email config missing required keys: %s", missing)
         return False
 
-    recipients = config["recipients"]
+    recipients = cfg["recipients"]
     if isinstance(recipients, str):
         recipients = [recipients]
 
@@ -130,14 +139,14 @@ def send_weekly_email(
         return False
 
     msg = MIMEMultipart()
-    msg["From"] = config["sender"]
+    msg["From"] = cfg["sender"]
     msg["To"] = ", ".join(recipients)
     msg["Subject"] = subject
     msg.attach(MIMEText(body, "plain"))
 
-    use_ssl = config.get("use_ssl", False)
-    host = config["smtp_host"]
-    port = int(config["smtp_port"])
+    use_ssl = cfg.get("use_ssl", False)
+    host = cfg["smtp_host"]
+    port = int(cfg["smtp_port"])
 
     try:
         if use_ssl:
@@ -147,8 +156,8 @@ def send_weekly_email(
             server = smtplib.SMTP(host, port)
             server.starttls()
 
-        server.login(config["username"], config["password"])
-        server.sendmail(config["sender"], recipients, msg.as_string())
+        server.login(cfg["username"], cfg["password"])
+        server.sendmail(cfg["sender"], recipients, msg.as_string())
         server.quit()
         log.info("Weekly email sent to %s", recipients)
         return True

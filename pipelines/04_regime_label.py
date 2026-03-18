@@ -35,7 +35,7 @@ import yaml
 
 def main() -> None:
     setup_logging()
-    cfg = load()
+    cfg = load(settings_path=(crab.CONFIG_DIR / "settings.yaml") if crab.CONFIG_DIR else None)
 
     features = pd.read_parquet(crab.DATA_DIR / "processed" / "features.parquet")
     labels = pd.read_parquet(crab.DATA_DIR / "regimes" / "cluster_labels.parquet")["balanced_cluster"]

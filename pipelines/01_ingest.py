@@ -28,7 +28,7 @@ import pandas as pd
 
 def main(argv=None) -> None:
     setup_logging()
-    cfg = load()
+    cfg = load(settings_path=(crab.CONFIG_DIR / "settings.yaml") if crab.CONFIG_DIR else None)
 
     # ── FRED ─────────────────────────────────────────────────────────────
     fred_df = fred_module.fetch_all(cfg)

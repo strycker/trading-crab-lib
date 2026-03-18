@@ -96,7 +96,11 @@ def main() -> int:
         print(f"No {WEEKLY_REPORT} at {report_path} — skip archive/email body.")
 
     if args.send_email:
-        cfg = load_email_config()
+        email_path = next(
+            (REPO_ROOT / "config" / n for n in ("email.local.yaml", "email.yaml") if (REPO_ROOT / "config" / n).exists()),
+            None,
+        )
+        cfg = load_email_config(email_path) if email_path else {}
         if not cfg:
             print("Email config not found or invalid; skipping send.")
         else:

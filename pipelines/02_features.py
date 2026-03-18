@@ -34,7 +34,7 @@ import pandas as pd
 
 def main() -> None:
     setup_logging()
-    cfg = load()
+    cfg = load(settings_path=(crab.CONFIG_DIR / "settings.yaml") if crab.CONFIG_DIR else None)
 
     raw = pd.read_parquet(crab.DATA_DIR / "raw" / "macro_raw.parquet")
     print(f"Loaded raw data: {raw.shape}")

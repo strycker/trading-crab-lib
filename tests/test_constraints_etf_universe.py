@@ -1,12 +1,16 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Iterable
 
 import pandas as pd
 import pytest
 
+from trading_crab_lib import CONFIG_DIR
 from trading_crab_lib.config import load
 from trading_crab_lib.checkpoints import CheckpointManager
+
+_REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _assert_columns_within_universe(
@@ -24,14 +28,18 @@ def _assert_columns_within_universe(
 
 @pytest.fixture(scope="module")
 def etf_universe() -> list[str]:
-    cfg = load()
-    etfs = cfg["assets"]["etfs"]
-    # Normalise to upper-case strings
+    # Caller-provided config path (no default in library).
+    settings_path = (CONFIG_DIR / "settings.yaml") if CONFIG_DIR else (_REPO_ROOT / "config" / "settings.yaml")
+    if not settings_path.exists():
+        pytest.skip("config/settings.yaml not found (need assets.etfs)")
+    cfg = load(settings_path=settings_path)
+    etfs = cfg.get("assets", {}).get("etfs", [])
     return [str(t).upper() for t in etfs]
 
 
 @pytest.fixture(scope="module")
 def checkpoints() -> CheckpointManager:
+    # CheckpointManager needs DATA_DIR (set via TRADING_CRAB_ROOT in conftest) or explicit checkpoint_dir.
     return CheckpointManager()
 
 

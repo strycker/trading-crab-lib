@@ -54,11 +54,11 @@ import yaml
 
 def load_regime_names() -> dict[int, str]:
     # Prefer manually edited config/regime_labels.yaml, fall back to auto-suggestions
-    override_path = crab.CONFIG_DIR / "regime_labels.yaml"
-    suggested_path = crab.DATA_DIR / "regimes" / "regime_names_suggested.yaml"
+    override_path = (crab.CONFIG_DIR / "regime_labels.yaml") if crab.CONFIG_DIR else None
+    suggested_path = (crab.DATA_DIR / "regimes" / "regime_names_suggested.yaml") if crab.DATA_DIR else None
 
     for path in [override_path, suggested_path]:
-        if path.exists():
+        if path is not None and path.exists():
             with open(path) as f:
                 raw = yaml.safe_load(f) or {}
             names = {int(k): v for k, v in raw.items() if not str(k).startswith("#")}
@@ -69,7 +69,7 @@ def load_regime_names() -> dict[int, str]:
 
 def main() -> None:
     setup_logging()
-    cfg = load()
+    cfg = load(settings_path=(crab.CONFIG_DIR / "settings.yaml") if crab.CONFIG_DIR else None)
 
     # Load current-regime model
     model_dir = crab.OUTPUT_DIR / "models"
@@ -122,7 +122,8 @@ def main() -> None:
         simple_weights = simple_regime_portfolio(profile, current_regime, top_n=3)
         blended_weights = blended_regime_portfolio(profile, probs, top_n=3)
         # Use current holdings (if configured) to produce BUY/SELL/HOLD deltas.
-        current_weights = pd.Series(load_portfolio(), dtype=float)
+        portfolio_path = (crab.CONFIG_DIR / "portfolio.yaml") if crab.CONFIG_DIR else None
+        current_weights = pd.Series(load_portfolio(portfolio_path), dtype=float)
         recommendations = generate_recommendation(blended_weights, current_weights=current_weights)
 
         print("\n── Simple portfolio (top-3 for current regime) ──")

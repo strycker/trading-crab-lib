@@ -25,6 +25,14 @@ try:
 except ImportError:  # pragma: no cover
     sys.path.insert(0, str(Path(__file__).parent / "src"))
     import trading_crab_lib as crab
+
+# This repo’s layout: set path roots so pipelines and load() have a config/data home.
+_REPO_ROOT = Path(__file__).resolve().parent
+crab.ROOT = _REPO_ROOT
+crab.CONFIG_DIR = _REPO_ROOT / "config"
+crab.DATA_DIR = _REPO_ROOT / "data"
+crab.OUTPUT_DIR = _REPO_ROOT / "outputs"
+
 from trading_crab_lib.checkpoints import CheckpointManager
 from trading_crab_lib.config import load, setup_logging
 from trading_crab_lib.email import build_weekly_email_body, load_email_config, send_weekly_email
@@ -152,8 +160,8 @@ def main(argv: list[str] | None = None) -> int:
     run_cfg.market_code_source = getattr(args, "market_code", None)
     run_cfg.apply_logging()
 
-    # Ensure config is loadable early (will raise if config/settings.yaml missing)
-    _ = load()
+    # Ensure config is loadable early (caller-provided path)
+    _ = load(settings_path=crab.CONFIG_DIR / "settings.yaml") if crab.CONFIG_DIR else load()
 
     requested = _parse_steps(args.steps)
     print(f"\nTrading-Crab pipeline runner [{run_cfg}]")
@@ -218,26 +226,14 @@ def main(argv: list[str] | None = None) -> int:
         archive_weekly_report()
 
     if args.send_email:
-        # Prefer the standard config/email.yaml, but support local overrides
-        # via config/email.local.yaml (gitignored).
+        # Caller-provided paths (library accepts both sender/recipients and from_address/to_address).
         email_cfg: dict = {}
-        email_yaml = crab.CONFIG_DIR / "email.yaml"
-        email_local = crab.CONFIG_DIR / "email.local.yaml"
-
-        if email_yaml.exists():
-            email_cfg = load_email_config(email_yaml)
-        if (not email_cfg) and email_local.exists():
-            email_cfg = load_email_config(email_local)
-
-        # Backward-compatible key mapping (older configs used from_address/to_address).
-        if email_cfg:
-            if "sender" not in email_cfg and "from_address" in email_cfg:
-                email_cfg["sender"] = email_cfg.get("from_address")
-            if "recipients" not in email_cfg:
-                if "to_address" in email_cfg:
-                    email_cfg["recipients"] = [email_cfg.get("to_address")]
-                elif "to_addresses" in email_cfg:
-                    email_cfg["recipients"] = email_cfg.get("to_addresses")
+        if crab.CONFIG_DIR is not None:
+            for name in ("email.local.yaml", "email.yaml"):
+                p = crab.CONFIG_DIR / name
+                if p.exists():
+                    email_cfg = load_email_config(p)
+                    break
         if not email_cfg:
             print("Email config not found or invalid; skipping send.")
         else:

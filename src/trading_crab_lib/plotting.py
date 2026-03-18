@@ -53,7 +53,7 @@ log = logging.getLogger(__name__)
 CUSTOM_COLORS: list[str] = ["#0000d0", "#d00000", "#f48c06", "#8338ec", "#50a000"]
 REGIME_CMAP = mcolors.ListedColormap(CUSTOM_COLORS)
 
-PLOT_DIR = OUTPUT_DIR / "plots"
+PLOT_DIR: Path | None = (OUTPUT_DIR / "plots") if OUTPUT_DIR else None
 
 
 def _save_or_show(fig: plt.Figure, filename: str, run_cfg: RunConfig) -> None:
@@ -63,9 +63,9 @@ def _save_or_show(fig: plt.Figure, filename: str, run_cfg: RunConfig) -> None:
     inline — regardless of show_plots — because the inline backend handles
     display cleanly and plt.close() would otherwise prevent any inline output.
     """
-    PLOT_DIR.mkdir(parents=True, exist_ok=True)
-    if run_cfg.save_plots:
-        out = PLOT_DIR / filename
+    if run_cfg.save_plots and PLOT_DIR is not None:
+        PLOT_DIR.mkdir(parents=True, exist_ok=True)
+        out = PLOT_DIR / filename  # type: ignore[union-attr]
         fig.savefig(out, dpi=150, bbox_inches="tight")
         log.info("Saved plot: %s", out)
     if run_cfg.show_plots or _in_jupyter():

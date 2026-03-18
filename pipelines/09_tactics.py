@@ -33,7 +33,7 @@ log = logging.getLogger(__name__)
 
 def main() -> None:
     setup_logging()
-    cfg = load()
+    cfg = load(settings_path=(crab.CONFIG_DIR / "settings.yaml") if crab.CONFIG_DIR else None)
 
     prices_path = crab.DATA_DIR / "raw" / "asset_prices.parquet"
     labels_path = crab.DATA_DIR / "regimes" / "cluster_labels.parquet"

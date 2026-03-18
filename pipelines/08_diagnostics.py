@@ -87,7 +87,7 @@ def _compute_ratios(prices: pd.DataFrame, cfg: dict) -> pd.DataFrame:
 
 def main() -> None:
     setup_logging()
-    cfg = load()
+    cfg = load(settings_path=(crab.CONFIG_DIR / "settings.yaml") if crab.CONFIG_DIR else None)
 
     prices = _load_etf_prices(cfg)
     if prices.empty:
