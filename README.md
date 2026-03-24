@@ -124,3 +124,24 @@ pytest tests/test_release_smoke.py -v
 ```
 
 Then run the full test suite with path roots set (e.g. `TRADING_CRAB_ROOT` or repo `conftest`).
+
+### Cutting a release
+
+Releases are published to PyPI when you **publish a GitHub Release**. The repo’s workflow (`.github/workflows/python-publish.yml`) builds the package and uploads it on `release: published`.
+
+1. **Bump the version** in `pyproject.toml`:
+   ```toml
+   version = "0.1.1"   # or 0.2.0, 1.0.0, etc.
+   ```
+
+2. **Commit and push** (e.g. `chore: release 0.1.1`).
+
+3. **Create a GitHub Release:**
+   - Repo → **Releases** → **Create a new release**
+   - **Choose a tag:** create tag `v0.1.1` (must match the version in `pyproject.toml`; use `v` prefix).
+   - **Release title:** e.g. `v0.1.1`
+   - Add release notes, then **Publish release**.
+
+4. The **Upload Python Package** workflow runs, builds the sdist and wheel, and publishes to PyPI.
+
+**One-time setup:** The workflow uses PyPI **Trusted Publishing** (no API token in GitHub secrets). On [pypi.org](https://pypi.org) → your project → **Publishing** → **Add a new pending publisher**, add this repo (`strycker/trading-crab-lib`), workflow `python-publish.yml`, and environment `pypi`. After that, each new published release will automatically upload to PyPI.
